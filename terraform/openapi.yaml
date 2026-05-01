@@ -1,0 +1,80 @@
+swagger: '2.0'
+info:
+  title: expense-tracker
+  description: Cloud-Based Expense Tracker API (SWE 455)
+  version: 1.0.0
+schemes: [https]
+produces: [application/json]
+consumes: [application/json]
+paths:
+  /signup:
+    post:
+      operationId: signup
+      x-google-backend:
+        address: ${user_manager_url}/signup
+      responses:
+        '201': { description: Created }
+        '400': { description: Validation error }
+        '409': { description: Email taken }
+  /login:
+    post:
+      operationId: login
+      x-google-backend:
+        address: ${user_manager_url}/login
+      responses:
+        '200': { description: OK }
+        '401': { description: Invalid credentials }
+  /users/profile:
+    get:
+      operationId: profile
+      x-google-backend:
+        address: ${user_manager_url}/users/profile
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+  /expenses:
+    get:
+      operationId: listExpenses
+      x-google-backend:
+        address: ${expense_service_url}/expenses
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+    post:
+      operationId: createExpense
+      x-google-backend:
+        address: ${expense_service_url}/expenses
+      responses:
+        '201': { description: Created }
+        '400': { description: Validation error }
+        '401': { description: Unauthorized }
+  /expenses/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        type: integer
+    get:
+      operationId: getExpense
+      x-google-backend:
+        address: ${expense_service_url}/expenses
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '200': { description: OK }
+        '404': { description: Not found }
+    patch:
+      operationId: updateExpense
+      x-google-backend:
+        address: ${expense_service_url}/expenses
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '200': { description: OK }
+        '404': { description: Not found }
+    delete:
+      operationId: deleteExpense
+      x-google-backend:
+        address: ${expense_service_url}/expenses
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '204': { description: No Content }
+        '404': { description: Not found }
