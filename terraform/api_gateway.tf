@@ -7,7 +7,7 @@ resource "google_api_gateway_api" "this" {
 resource "google_api_gateway_api_config" "this" {
   provider      = google-beta
   api           = google_api_gateway_api.this.api_id
-  api_config_id = "v1"
+  api_config_id = "v2"
 
   openapi_documents {
     document {

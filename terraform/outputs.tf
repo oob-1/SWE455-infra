@@ -30,3 +30,28 @@ output "cloud_sql_connection" {
   value       = google_sql_database_instance.pg.connection_name
   description = "PROJECT:REGION:INSTANCE — used by the Cloud SQL connector."
 }
+
+# Echoed inputs — handy for scripts that don't want to re-read terraform.tfvars.
+output "project_id" {
+  value = var.project_id
+}
+
+output "region" {
+  value = var.region
+}
+
+output "github_owner" {
+  value = var.github_owner
+}
+
+output "user_manager_repo" {
+  value = var.user_manager_repo
+}
+
+output "expense_service_repo" {
+  value = var.expense_service_repo
+}
+
+output "artifact_registry_repo" {
+  value = google_artifact_registry_repository.images.repository_id
+}

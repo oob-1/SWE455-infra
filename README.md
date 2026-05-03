@@ -38,7 +38,34 @@ docker compose up -d
 ## Deploy lifecycle
 1. Bootstrap GCP project + GCS state bucket (manual, one-off — see `docs/deployment.md`).
 2. `terraform apply` from this repo (or via `terraform.yml` workflow on `main`).
-3. Push each service repo to deploy its image.
+3. Push each service repo to deploy its image — *or* run `scripts\deploy-images.ps1` locally to skip GitHub.
+
+## Helper scripts (PowerShell)
+
+If you hit "running scripts is disabled" on first run, either run with `-File`
+(no policy needed):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\deploy-images.ps1
+```
+
+…or relax the policy once for your user:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
+- `scripts\deploy-images.ps1 [user-manager|expense-service]` — build, push, and deploy one or both
+  service images to Cloud Run, replacing the placeholder image. Reads project/region from
+  `terraform output`. Default (no arg) deploys both.
+- `scripts\set-github-vars.ps1` — read `wif_provider`, `deployer_sa_email`, `project_id`, `region`
+  from `terraform output` and set them as GitHub Actions `vars` on each service repo
+  (`GCP_PROJECT_ID`, `GCP_REGION`, `WIF_PROVIDER`, `DEPLOYER_SA_EMAIL`). Re-run after every fresh
+  apply because the WIF suffix rotates.
+- `scripts\destroy-keep-db.ps1` — partial teardown of Cloud Run + API Gateway only. Cloud SQL,
+  WIF, secrets, IAM, Artifact Registry, and the `random_id` suffix all stay. Re-apply takes
+  ~5 min instead of ~20 min and GitHub vars don't need re-syncing. Use plain `terraform destroy`
+  for a full teardown.
 
 ## Tear down
 

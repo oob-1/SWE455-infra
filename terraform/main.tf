@@ -1,3 +1,16 @@
+# Unique 4-byte (8 hex chars) suffix shared by resources whose GCP-side
+# names enter a soft-deleted reservation period after destroy:
+#   - Cloud SQL instance names: ~7 days
+#   - Workload Identity Pool/Provider IDs: 30 days
+# Without a unique suffix, `terraform destroy` followed by `terraform apply`
+# within that window fails with 409 "already exists".
+# This suffix is generated once per state — stable across plain `apply`
+# runs, fresh on a re-apply that follows `destroy` (because state is wiped
+# along with everything else).
+resource "random_id" "suffix" {
+  byte_length = 4
+}
+
 locals {
   apis = [
     "run.googleapis.com",
@@ -35,7 +48,7 @@ resource "random_password" "db" {
 }
 
 resource "google_sql_database_instance" "pg" {
-  name             = "expense-tracker-pg"
+  name             = "expense-tracker-pg-${random_id.suffix.hex}"
   database_version = "POSTGRES_16"
   region           = var.region
 

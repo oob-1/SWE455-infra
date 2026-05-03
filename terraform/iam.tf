@@ -1,4 +1,5 @@
 # Per-service runtime identities (least privilege)
+
 resource "google_service_account" "user_manager" {
   account_id   = "sa-user-manager"
   display_name = "Run: User Manager"
@@ -19,30 +20,63 @@ resource "google_service_account" "github_deployer" {
   display_name = "GitHub Actions deployer"
 }
 
+# Runtime service accounts permissions
+# Static keys are used to avoid Terraform "Invalid for_each argument" errors.
+
 locals {
-  runtime_sas = [
-    google_service_account.user_manager.email,
-    google_service_account.expense_service.email,
-  ]
-  runtime_roles = [
-    "roles/cloudsql.client",
-    "roles/secretmanager.secretAccessor",
-    "roles/logging.logWriter",
-    "roles/monitoring.metricWriter",
-  ]
+  runtime_iam_bindings = {
+    user_manager_cloudsql_client = {
+      sa   = google_service_account.user_manager.email
+      role = "roles/cloudsql.client"
+    }
+
+    user_manager_secret_accessor = {
+      sa   = google_service_account.user_manager.email
+      role = "roles/secretmanager.secretAccessor"
+    }
+
+    user_manager_log_writer = {
+      sa   = google_service_account.user_manager.email
+      role = "roles/logging.logWriter"
+    }
+
+    user_manager_monitoring_writer = {
+      sa   = google_service_account.user_manager.email
+      role = "roles/monitoring.metricWriter"
+    }
+
+    expense_service_cloudsql_client = {
+      sa   = google_service_account.expense_service.email
+      role = "roles/cloudsql.client"
+    }
+
+    expense_service_secret_accessor = {
+      sa   = google_service_account.expense_service.email
+      role = "roles/secretmanager.secretAccessor"
+    }
+
+    expense_service_log_writer = {
+      sa   = google_service_account.expense_service.email
+      role = "roles/logging.logWriter"
+    }
+
+    expense_service_monitoring_writer = {
+      sa   = google_service_account.expense_service.email
+      role = "roles/monitoring.metricWriter"
+    }
+  }
 }
 
 resource "google_project_iam_member" "runtime_bindings" {
-  for_each = {
-    for pair in setproduct(local.runtime_sas, local.runtime_roles) :
-    "${pair[0]}|${pair[1]}" => { sa = pair[0], role = pair[1] }
-  }
+  for_each = local.runtime_iam_bindings
+
   project = var.project_id
   role    = each.value.role
   member  = "serviceAccount:${each.value.sa}"
 }
 
 # API Gateway SA can invoke both Cloud Run services
+
 resource "google_cloud_run_v2_service_iam_member" "gw_invokes_um" {
   location = var.region
   name     = google_cloud_run_v2_service.user_manager.name
@@ -57,16 +91,20 @@ resource "google_cloud_run_v2_service_iam_member" "gw_invokes_es" {
   member   = "serviceAccount:${google_service_account.api_gateway.email}"
 }
 
-# --- Workload Identity Federation: GitHub OIDC ---
+# Workload Identity Federation: GitHub OIDC
+
 resource "google_iam_workload_identity_pool" "github" {
-  workload_identity_pool_id = "github-pool"
+  # Suffixed because GCP soft-deletes pools for 30 days; a fresh post-destroy
+  # apply within that window would 409 on the stable name.
+  workload_identity_pool_id = "github-pool-${random_id.suffix.hex}"
   display_name              = "GitHub Actions"
-  depends_on                = [google_project_service.enabled]
+
+  depends_on = [google_project_service.enabled]
 }
 
 resource "google_iam_workload_identity_pool_provider" "github" {
   workload_identity_pool_id          = google_iam_workload_identity_pool.github.workload_identity_pool_id
-  workload_identity_pool_provider_id = "github-provider"
+  workload_identity_pool_provider_id = "github-provider-${random_id.suffix.hex}"
 
   oidc {
     issuer_uri = "https://token.actions.githubusercontent.com"
@@ -82,6 +120,7 @@ resource "google_iam_workload_identity_pool_provider" "github" {
 }
 
 # Allow each repo to impersonate the deployer SA
+
 locals {
   allowed_repos = [
     "${var.github_owner}/${var.user_manager_repo}",
@@ -91,13 +130,15 @@ locals {
 }
 
 resource "google_service_account_iam_member" "github_impersonate" {
-  for_each           = toset(local.allowed_repos)
+  for_each = toset(local.allowed_repos)
+
   service_account_id = google_service_account.github_deployer.name
   role               = "roles/iam.workloadIdentityUser"
   member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${each.value}"
 }
 
 # Deployer SA needs to push images, deploy Cloud Run, and run Terraform
+
 resource "google_project_iam_member" "deployer_roles" {
   for_each = toset([
     "roles/artifactregistry.writer",
@@ -108,6 +149,7 @@ resource "google_project_iam_member" "deployer_roles" {
     "roles/apigateway.admin",
     "roles/storage.admin",
   ])
+
   project = var.project_id
   role    = each.value
   member  = "serviceAccount:${google_service_account.github_deployer.email}"

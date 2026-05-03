@@ -1,7 +1,9 @@
 locals {
-  ar_host      = "${var.region}-docker.pkg.dev"
-  image_tag_um = "${local.ar_host}/${var.project_id}/${google_artifact_registry_repository.images.repository_id}/user-manager:bootstrap"
-  image_tag_es = "${local.ar_host}/${var.project_id}/${google_artifact_registry_repository.images.repository_id}/expense-service:bootstrap"
+  # Public placeholder image used only for the very first revision so the
+  # service comes up before CI has pushed a real image. CI overwrites this
+  # on the first deploy, and `ignore_changes = [...image]` below keeps
+  # Terraform from reverting the deployed image afterwards.
+  bootstrap_image = "us-docker.pkg.dev/cloudrun/container/hello"
 }
 
 resource "google_cloud_run_v2_service" "user_manager" {
@@ -17,7 +19,7 @@ resource "google_cloud_run_v2_service" "user_manager" {
     }
 
     containers {
-      image = local.image_tag_um
+      image = local.bootstrap_image
       ports { container_port = 8080 }
 
       env {
@@ -87,7 +89,7 @@ resource "google_cloud_run_v2_service" "expense_service" {
     }
 
     containers {
-      image = local.image_tag_es
+      image = local.bootstrap_image
       ports { container_port = 8080 }
 
       env {

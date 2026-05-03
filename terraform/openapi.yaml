@@ -57,7 +57,7 @@ paths:
     get:
       operationId: getExpense
       x-google-backend:
-        address: ${expense_service_url}/expenses
+        address: ${expense_service_url}
         path_translation: APPEND_PATH_TO_ADDRESS
       responses:
         '200': { description: OK }
@@ -65,7 +65,7 @@ paths:
     patch:
       operationId: updateExpense
       x-google-backend:
-        address: ${expense_service_url}/expenses
+        address: ${expense_service_url}
         path_translation: APPEND_PATH_TO_ADDRESS
       responses:
         '200': { description: OK }
@@ -73,7 +73,7 @@ paths:
     delete:
       operationId: deleteExpense
       x-google-backend:
-        address: ${expense_service_url}/expenses
+        address: ${expense_service_url}
         path_translation: APPEND_PATH_TO_ADDRESS
       responses:
         '204': { description: No Content }
